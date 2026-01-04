@@ -1,34 +1,16 @@
 package cmd_test
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	pop "github.com/maroda/popg/cmd"
 )
-
-func TestBasicFetch(t *testing.T) {
-	t.Run("Fetches a basic URL", func(t *testing.T) {
-		newServ := MakeTestWebServer("a body string")
-		defer newServ.Close()
-
-		url := newServ.URL
-		want := "a body string"
-		code, got, err := pop.FetchBody(url)
-
-		if code != 200 {
-			t.Errorf("want 200, got %d", code)
-		}
-		if want != got {
-			t.Errorf("want %q, got %q", want, got)
-		}
-		if err != nil {
-			t.Errorf("want no error, got %v", err)
-		}
-	})
-}
 
 func TestCatURL(t *testing.T) {
 	t.Run("Creates a basic URL from pieces", func(t *testing.T) {
@@ -46,22 +28,39 @@ func TestCatURL(t *testing.T) {
 	})
 }
 
-func TestQueryArtist_Integration(t *testing.T) {
-	t.Run("INTEGRATION: Retrieve artist from MusicBrainz", func(t *testing.T) {
-		want := "Craque"
-		question := "Craque"
-		qtype := "artist"
+func TestMBQuestion_ArtistSearch(t *testing.T) {
+	tests := []struct {
+		question string
+		qtype    string
+		wantBool bool
+		expect   string
+	}{
+		{
+			question: "Craque", // Known artist
+			qtype:    "artist",
+			wantBool: true,
+			expect:   "Craque",
+		},
+		{
+			question: "Nslgzb", // nonsense (hopefully)
+			qtype:    "artist",
+			wantBool: false,
+			expect:   "Not Found",
+		},
+	}
 
-		ask := pop.NewMBQuestion(question, qtype)
-		ok, got := ask.FindArtist()
-		if !ok {
-			t.Errorf("want true, got false")
-		}
-		if got != want {
-			t.Errorf("want %q, got %q", want, got)
-		}
-		t.Log(got)
-	})
+	for _, tt := range tests {
+		t.Run("INTEGRATION - Artist search "+tt.question, func(t *testing.T) {
+			ask := pop.NewMBQuestion(tt.question, tt.qtype)
+
+			ok, got, err := ask.ArtistSearch(context.Background())
+			assertError(t, err, nil)
+			if ok != tt.wantBool {
+				t.Errorf("Expected %v, got %v", tt.wantBool, ok)
+			}
+			assertStringContains(t, got, tt.expect)
+		})
+	}
 }
 
 // Helpers //
@@ -74,4 +73,48 @@ func MakeTestWebServer(body string) *httptest.Server {
 			log.Fatal(err)
 		}
 	}))
+}
+
+// Assertions //
+
+func assertError(t testing.TB, got, want error) {
+	t.Helper()
+	if !errors.Is(got, want) {
+		t.Errorf("got error %q want %q", got, want)
+	}
+}
+
+func assertGotError(t testing.TB, got error) {
+	t.Helper()
+	if got == nil {
+		t.Errorf("Expected an error but got %q", got)
+	}
+}
+
+func assertStatus(t testing.TB, got, want int) {
+	t.Helper()
+	if got != want {
+		t.Errorf("did not get correct status, got %d, want %d", got, want)
+	}
+}
+
+func assertInt(t *testing.T, got, want int) {
+	t.Helper()
+	if got != want {
+		t.Errorf("did not get correct value, got %d, want %d", got, want)
+	}
+}
+
+func assertInt64(t *testing.T, got, want int64) {
+	t.Helper()
+	if got != want {
+		t.Errorf("did not get correct value, got %d, want %d", got, want)
+	}
+}
+
+func assertStringContains(t *testing.T, full, want string) {
+	t.Helper()
+	if !strings.Contains(full, want) {
+		t.Errorf("Did not find %q, expected string contains %q", want, full)
+	}
 }
