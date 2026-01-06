@@ -21,6 +21,7 @@ const (
 	httpClientTimeout = 5 * time.Second
 )
 
+// MBQuestion is the heart of operations, where data and client configs are kept
 type MBQuestion struct {
 	httpClient  *http.Client
 	rateLimiter *rate.Limiter
@@ -31,12 +32,14 @@ type MBQuestion struct {
 	RespBody    string
 }
 
+// MBAnswerArtist is the primary target for unmarshalling the results JSON.
 type MBAnswerArtist struct {
 	Count   int      `json:"count"`
 	Offset  int      `json:"offset"`
 	Artists []Artist `json:"artists"`
 }
 
+// Artist is a sub-target for unmarshalling the specific Artist keys we care about.
 type Artist struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`
@@ -132,6 +135,7 @@ func (mbq *MBQuestion) ArtistSearch(ctx context.Context) (bool, string, error) {
 	newartist := &MBAnswerArtist{}
 	err := json.Unmarshal([]byte(mbq.RespBody), newartist)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("Failed to unmarshal artist info", slog.String("url", mbq.QFullURL))
 		return false, "", fmt.Errorf("failed to unmarshal artist info: %w", err)
 	}
@@ -144,7 +148,8 @@ func (mbq *MBQuestion) ArtistSearch(ctx context.Context) (bool, string, error) {
 	return true, name, nil
 }
 
-// FetchBody reads a url and returns the status code with body as a string
+// FetchBody reads a url and returns the status code and any errors,
+// the actual contents of the fetch are put in the struct.
 func (mbq *MBQuestion) FetchBody(ctx context.Context) (int, error) {
 	ctx, span := otel.Tracer("musicbrainz/artistsearch").Start(ctx, "FetchBody")
 	defer span.End()
@@ -153,10 +158,11 @@ func (mbq *MBQuestion) FetchBody(ctx context.Context) (int, error) {
 		attribute.String("http.url", mbq.QFullURL),
 		attribute.String("http.method", "GET"))
 
-	// Create an http request with context
-	// Used for tracking rate limiter and tracing
+	// Create an http request and initiate new context,
+	// passed around for tracing and rate limiting
 	req, err := http.NewRequestWithContext(ctx, "GET", mbq.QFullURL, nil)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("Failed to make request", slog.String("url", mbq.QFullURL))
 		return 0, err
 	}
@@ -164,10 +170,11 @@ func (mbq *MBQuestion) FetchBody(ctx context.Context) (int, error) {
 
 	resp, err := mbq.httpClient.Do(req)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("Failed to fetch body", slog.String("url", mbq.QFullURL))
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	code := resp.StatusCode
 	span.SetAttributes(attribute.Int("http.status_code", code))
@@ -203,6 +210,6 @@ func CatURL(u ...string) string {
 	for _, p := range u {
 		fullURL = fullURL + p
 	}
-	slog.Debug("Catting URL", slog.String("url", fullURL))
+	slog.Debug("URL created", slog.String("url", fullURL))
 	return fullURL
 }

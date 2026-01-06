@@ -13,9 +13,6 @@ func main() {
 	term := os.Args[1:]
 	find := term[0]
 
-	fmt.Printf("Looking for %s in MusicBrainz database...\n", find)
-	p := pop.NewMBQuestion(find, "artist")
-
 	// Init OTel for Grafana OTLP endpoint
 	tp, err := pop.InitOTelGRF()
 	if err != nil {
@@ -23,9 +20,13 @@ func main() {
 	}
 	defer tp.Shutdown(context.Background())
 
-	okp, namep, err := p.ArtistSearch(context.Background())
-	if !okp || err != nil {
-		slog.Error("failed to find term!", slog.Bool("ok", okp), slog.Any("error", err))
+	// Run program
+	fmt.Printf("Looking for %s in MusicBrainz database...\n", find)
+	p := pop.NewMBQuestion(find, "artist")
+	ok, name, err := p.ArtistSearch(context.Background())
+	if !ok || err != nil {
+		slog.Error("failed to find term!",
+			slog.Bool("ok", ok), slog.Any("error", err))
 	}
-	fmt.Println("Found it! ::: " + namep)
+	fmt.Println("Found it! ::: " + name)
 }

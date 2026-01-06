@@ -23,9 +23,7 @@ func TestCatURL(t *testing.T) {
 		fmt := "&fmt=json"
 
 		got := pop.CatURL(root, api, query, term, fmt)
-		if got != want {
-			t.Errorf("want %q, got %q", want, got)
-		}
+		assertStringContains(t, got, want)
 	})
 }
 
@@ -64,7 +62,8 @@ func TestMBQuestion_ArtistSearch(t *testing.T) {
 	}
 }
 
-func TestMBQuestion_FetchBody(t *testing.T) {
+// No testing for stdlib FetchBody functions: http.NewRequestWithContext(), io.ReadAll()
+func TestMBQuestion_FetchBody_Errors(t *testing.T) {
 	tests := []struct {
 		name     string
 		question string
@@ -126,6 +125,7 @@ func TestMBQuestion_ArtistSearch_Backoff(t *testing.T) {
 		t.Errorf("Expected at least 7 seconds of backoff, got %s", elapsed)
 	}
 
+	// An error should be returned when reaching the backoff delay limit (3)
 	assertGotError(t, err)
 }
 
