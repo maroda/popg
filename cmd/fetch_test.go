@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	pop "github.com/maroda/popg/cmd"
 )
@@ -63,6 +64,71 @@ func TestMBQuestion_ArtistSearch(t *testing.T) {
 	}
 }
 
+func TestMBQuestion_FetchBody(t *testing.T) {
+	tests := []struct {
+		name     string
+		question string
+		qType    string
+		wantCode int
+	}{
+		{name: "503 rate limited", question: "Craque", qType: "artist", wantCode: 503},
+		{name: "Non-200", question: "Craque", qType: "artist", wantCode: 404},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			webServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "", tt.wantCode)
+			}))
+			defer webServ.Close()
+
+			q := pop.NewMBQuestion(tt.question, tt.qType)
+
+			// set URL to the test server and then fetch
+			q.QFullURL = webServ.URL
+			code, _ := q.FetchBody(context.Background())
+			assertStatus(t, code, tt.wantCode)
+		})
+	}
+
+	t.Run("Errors on Host Unreachable", func(t *testing.T) {
+		q := pop.NewMBQuestion("Craque", "artist")
+		q.QFullURL = "https://badhost:4220"
+		wantCode := 0
+		code, err := q.FetchBody(context.Background())
+		assertGotError(t, err)
+		assertStatus(t, code, wantCode)
+	})
+}
+
+func TestMBQuestion_ArtistSearch_Backoff(t *testing.T) {
+	callCount := 0
+	webServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer webServ.Close()
+
+	q := pop.NewMBQuestion("Craque", "artist")
+	q.QFullURL = webServ.URL
+
+	start := time.Now()
+	_, _, err := q.ArtistSearch(context.Background())
+	elapsed := time.Since(start)
+
+	// Should have retried 3 times (4 total attempts)
+	if callCount != 4 {
+		t.Errorf("Expected 4 calls, got %d", callCount)
+	}
+
+	// Backoff delays
+	if elapsed < 7*time.Second {
+		t.Errorf("Expected at least 7 seconds of backoff, got %s", elapsed)
+	}
+
+	assertGotError(t, err)
+}
+
 // Helpers //
 
 func MakeTestWebServer(body string) *httptest.Server {
@@ -99,13 +165,6 @@ func assertStatus(t testing.TB, got, want int) {
 }
 
 func assertInt(t *testing.T, got, want int) {
-	t.Helper()
-	if got != want {
-		t.Errorf("did not get correct value, got %d, want %d", got, want)
-	}
-}
-
-func assertInt64(t *testing.T, got, want int64) {
 	t.Helper()
 	if got != want {
 		t.Errorf("did not get correct value, got %d, want %d", got, want)
