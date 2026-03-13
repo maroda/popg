@@ -1,25 +1,35 @@
-# Practice Automation
+# Practice of Practice Games
 
-Tools for resilience games in development.
+Tools for resilience games.
 
-> _Current development is to retrieve data for game contents._
+> **Module In Development**: [_Wheel of Expertise_](https://www.popg.xyz/2024/05/23/wheelofexpertise/)
 
 ## How To Use
 
-1. Clone
-2. `go build .`
-3. Run: `./popg <ARTIST>`
+### Wheel of Expertise Server
 
-### Example
+Run this in the background or in its own terminal window:
+```zsh
+$ ./popg
+2026/03/12 21:15:57 INFO Starting server on port 1234 token=559aae76-1e93-11f1-951f-decaae22ca3c
+```
 
-This commandline app takes one argument:
-- **Artist name** to lookup in the MusicBrainz database
+### Client CLI
+
+Spin the wheel using the built-in CLI client:
+```zsh
+$ ./popg -url 'http://localhost:1234/s/test' -client 559aae76-1e93-11f1-951f-decaae22ca3c -json '{ "id": "331c7a00-1e70-11f1-85c8-53e0cbee6e98", "version": "0.1.0", "event_type": "spin.custom.wheel", "timestamp": "2026-03-12T10:00:00Z", "data": { "entries": ["one", "two", "three", "four", "five", "six", "seven"] } }'
+2026/03/12 21:10:56 INFO Wheel spun!
+five
+```
+
+### One-Off Artist Search
 
 ```zsh
-$ ./popg Autechre
+$ ./popg -artist Autechre
 Looking for Autechre in MusicBrainz database...
-2026/01/04 15:25:04 INFO Data fetched status=200 url="https://musicbrainz.org/ws/2/artist/?query=artist:Autechre&fmt=json"
-Found it! ::: Autechre
+2026/03/12 21:14:20 INFO Data fetched status=200 url="https://musicbrainz.org/ws/2/artist/?query=artist:Autechre&fmt=json"
+Found ::: Autechre
 ```
 
 ## OpenTelemetry
