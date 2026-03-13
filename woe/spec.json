@@ -1,0 +1,26 @@
+{
+  "version": "0.1.0",
+  "produced_by": "wheel-of-expertise",
+  "events": [
+    {
+      "type": "spin.custom.wheel",
+      "description": "Fired when a new wheel has fresh entries to spin",
+      "payload": {
+        "id": "331c7a00-1e70-11f1-85c8-53e0cbee6e98",
+        "version": "0.1.0",
+        "event_type": "spin.custom.wheel",
+        "timestamp": "2026-03-12T10:00:00Z",
+        "data": {
+          "entries": ["one", "two", "three", "four", "five", "six", "seven"]
+        }
+      }
+    }
+  ],
+  "delivery": {
+    "authentication": "HMAC-SHA256",
+    "signature_header": "X-Hub-Signature",
+    "idempotency_header": "X-Spin-ID",
+    "retry_policy": "exponential backoff, idempotent spins",
+    "expected_response": 200
+  }
+}

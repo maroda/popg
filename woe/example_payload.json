@@ -1,0 +1,9 @@
+{
+  "id": "331c7a00-1e70-11f1-85c8-53e0cbee6e98",
+  "version": "0.1.0",
+  "event_type": "spin.custom.wheel",
+  "timestamp": "2026-03-12T10:00:00Z",
+  "data": {
+    "entries": ["one", "two", "three", "four", "five", "six", "seven"]
+  }
+}
