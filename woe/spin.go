@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
 
 /*
@@ -48,7 +50,7 @@ type Payload struct {
 	ID        string              `json:"id"`
 	Version   string              `json:"version"`
 	EventType string              `json:"event_type"`
-	Timestamp time.Time           `json:"timestamp"`
+	Timestamp string              `json:"timestamp"`
 	Data      map[string][]string `json:"data"`
 }
 
@@ -62,7 +64,7 @@ func (p *Payload) validatePayload() error {
 	if p.EventType == "" {
 		errors.New("missing event_type")
 	}
-	if p.Timestamp.IsZero() {
+	if p.Timestamp == "" {
 		errors.New("missing timestamp")
 	}
 	if p.Data["entries"] == nil {
@@ -72,10 +74,14 @@ func (p *Payload) validatePayload() error {
 }
 
 type Wheel struct {
-	mu         sync.Mutex
+	mu         sync.Mutex   // Wheel state lock
+	Hub        *WSHub       // Connection registry lock
 	Token      string       // Token for this wheel, currently a random UUID
 	SpinID     string       // SpinID for this spin, created at producer
 	SpunString string       // Current spun entry
+	Velocity   float64      // Speed of the wheel spin
+	RandSeed   float64      // Indeterminacy of the wheel spin
+	SpinTime   time.Time    // Time of last spin
 	Entries    *[]string    // Each space of the wheel
 	Server     *http.Server // Server for this wheel
 	Mux        *mux.Router  // Router for this Server
@@ -88,8 +94,12 @@ func NewWheel(wd *[]string) (*Wheel, error) {
 	}
 
 	wheel := &Wheel{
-		Token:   token.String(),
-		Entries: wd,
+		Hub: &WSHub{
+			clients: make(map[*websocket.Conn]bool),
+		},
+		Token:    token.String(),
+		Entries:  wd,
+		Velocity: 0,
 	}
 
 	return wheel, nil
@@ -106,7 +116,24 @@ func (we *Wheel) SetupMux() *mux.Router {
 	// Auth required on configurable wheels
 	r.HandleFunc("/s/{args}", we.SpinArgsHandler) // Spins a configurable wheel, auth required
 
+	// Websocket for synchronized UI
+	r.HandleFunc("/ws", we.WebsocketHandler)
+
+	// Wheel of Expertise front-end
+	// r.PathPrefix("/").Handler(http.FileServer(http.Dir("./woe/dev/")))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./woe/dev"))))
+	r.HandleFunc("/", we.GameHandler)
+
 	return r
+}
+
+func (we *Wheel) GameHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("./woe/dev/index.html"))
+	if err := tmpl.Execute(w, map[string]string{"Token": we.Token}); err != nil {
+		slog.Error("Template execution error", slog.Any("err", err))
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // RandTermHandler kicks off a process to replace the default wheel entries
@@ -116,13 +143,62 @@ func (we *Wheel) RandTermHandler(w http.ResponseWriter, r *http.Request) {
 
 // SpinHandler for simple webhook
 func (we *Wheel) SpinHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(we.Spin(1)))
+	switch r.Method {
+	case "GET":
+		w.Write([]byte(we.Spin(1)))
+		slog.Info("Default Wheel Spun!",
+			slog.String("method", r.Method),
+			slog.String("request", r.RequestURI),
+			slog.String("remote_addr", r.RemoteAddr),
+			slog.String("path", r.URL.Path))
+	case "POST":
+		we.processPayload(w, r)
 
-	slog.Info("Wheel spin",
-		slog.String("method", r.Method),
-		slog.String("request", r.RequestURI),
-		slog.String("remote_addr", r.RemoteAddr),
-		slog.String("path", r.URL.Path))
+		// Coming from the browser, spindata is first generated here
+		// Init spin to clients
+		we.Hub.Broadcast(&SpinDataWS{
+			Type:       "spin",
+			SpinID:     we.SpinID,
+			Entries:    we.Entries,
+			Timestamp:  we.SpinTime,
+			Velocity:   we.Velocity,
+			SpunString: we.SpunString, // added for snapping to the winner
+		})
+
+		slog.Info("Broadcasting spin", slog.String("spun", we.SpunString))
+	}
+
+}
+
+func (we *Wheel) processPayload(w http.ResponseWriter, r *http.Request) {
+	var payload Payload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		slog.Error("Browser spin decode error", slog.Any("err", err))
+		http.Error(w, "Browser spin decode error", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+
+	// Validate Payload
+	err := payload.validatePayload()
+	if err != nil {
+		slog.Error("Failed to validate payload", slog.Any("error", err))
+		http.Error(w, "Failed to validate payload", http.StatusBadRequest)
+		return
+	}
+
+	// Record Payload Data
+	entries := payload.Data["entries"]
+
+	// Set a new velocity
+	we.calcVelocity()
+
+	// Record new state to the wheel
+	we.mu.Lock()
+	we.SpinID = payload.ID
+	we.Entries = &entries
+	we.SpinTime = time.Now().UTC()
+	we.mu.Unlock()
 }
 
 func (we *Wheel) validateSig(r *http.Request, body []byte) bool {
@@ -149,7 +225,7 @@ func (we *Wheel) SpinArgsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read configuration", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	if !we.validateSig(r, body) {
 		slog.Error("Failed to validate authentication signature")
@@ -167,9 +243,6 @@ func (we *Wheel) SpinArgsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cache miss, it's a new spin!
-
-	// TODO: This does not update the entries yet!!!
-	// we.Entities needs to be updated with the webhook payload
 
 	// Parse Payload
 	payload := &Payload{}

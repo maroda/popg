@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	wheel "github.com/maroda/popg/woe"
 )
 
@@ -40,12 +41,12 @@ import (
 */
 
 func TestWheel_Spin(t *testing.T) {
-	t.Run("Returns a successful default wheel spin", func(t *testing.T) {
+	t.Run("Returns a default wheel spin", func(t *testing.T) {
 		words := []string{"one", "two", "three", "four", "five", "six", "seven"}
 		we, err := wheel.NewWheel(&words)
 		assertError(t, err, nil)
 
-		r := httptest.NewRequest("POST", "/spin", nil)
+		r := httptest.NewRequest("GET", "/spin", nil)
 		w := httptest.NewRecorder()
 		mux := we.SetupMux()
 
@@ -53,6 +54,47 @@ func TestWheel_Spin(t *testing.T) {
 		assertStatus(t, w.Code, http.StatusOK)
 
 		t.Log(we.Token, w.Body.String())
+	})
+
+	t.Run("Returns a browser wheel spin", func(t *testing.T) {
+		json := `{
+  "id": "331c7a00-1e70-11f1-85c8-53e0cbee6e98",
+  "version": "0.1.0",
+  "event_type": "spin.browser.wheel",
+  "timestamp": "2026-03-12T10:00:00Z",
+  "data": {
+    "entries": ["eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen"]
+  }
+}`
+		reader := bytes.NewReader([]byte(json))
+		sendbody := io.Reader(reader)
+
+		// Create a new default wheel using default entries
+		words := []string{"one", "two", "three", "four", "five", "six", "seven"}
+		we, err := wheel.NewWheel(&words)
+		assertError(t, err, nil)
+
+		// Run the server
+		ts := httptest.NewServer(we.SetupMux())
+		defer ts.Close()
+
+		resp, err := http.Post(ts.URL+"/spin", "application/json", sendbody)
+		assertError(t, err, nil)
+		assertStatus(t, resp.StatusCode, http.StatusOK)
+
+		url := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+		ws, _, err := websocket.DefaultDialer.Dial(url, nil)
+		assertError(t, err, nil)
+		defer ws.Close()
+
+		// Read from the websocket
+		result := &wheel.SpinDataWS{}
+		err = ws.ReadJSON(result)
+		assertError(t, err, nil)
+		t.Log(result)
+
+		err = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		assertError(t, err, nil)
 	})
 }
 
@@ -114,9 +156,7 @@ func TestSpinClient(t *testing.T) {
 		assertError(t, err, nil)
 
 		// Run the server
-
-		mux := we.SetupMux()
-		ts := httptest.NewServer(mux)
+		ts := httptest.NewServer(we.SetupMux())
 		defer ts.Close()
 
 		// Run the client with a payload
@@ -132,7 +172,7 @@ func TestWheel_RandTermHandler(t *testing.T) {
 	t.Run("Returns a random entities wheel spin", func(t *testing.T) {
 		// This list will be replaced below by the internal function
 		words := []string{"one", "two", "three", "four", "five", "six", "seven"}
-		wheel, err := wheel.NewWheel(&words)
+		we, err := wheel.NewWheel(&words)
 		assertError(t, err, nil)
 
 		body := []byte(strings.Join(words, ", "))
@@ -140,7 +180,7 @@ func TestWheel_RandTermHandler(t *testing.T) {
 
 		r := httptest.NewRequest("POST", "/randomize", sendbody)
 		w := httptest.NewRecorder()
-		mux := wheel.SetupMux()
+		mux := we.SetupMux()
 
 		mux.ServeHTTP(w, r)
 		assertStatus(t, w.Code, http.StatusOK)

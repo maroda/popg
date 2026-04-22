@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wheel of Expertise</title>
+    <link rel="stylesheet" href="/static/woe.css">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<script>
+    const TOKEN = "{{.Token}}";
+</script>
+
+<div id="gm-form">
+    <textarea id="entries-input" rows="8" placeholder="Enter one item per line"></textarea>
+    <button id="start-game">Spin!</button>
+</div>
+
+<div id="wheelOfExpertise">
+    <canvas id="wheel" width="800" height="800"></canvas>
+    <div id="spin">SPIN</div>
+</div>
+
+<script src="/static/woe.js"></script>
+</body>
+</html>
