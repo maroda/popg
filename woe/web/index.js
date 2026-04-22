@@ -4,8 +4,8 @@ const sectors = [
     {color:"#a23737", label:"ETTO"},
     {color:"#2144f3", label:"Robustness"},
     {color:"#683572", label:"RAG"},
-    {color:"#0a7d4a", label:"Graceful Extensibility"},
-    {color:"#0e4467", label:"Reliability"},
+    {color:"#0a7d4a", label:"Human Work"},
+    {color:"#0e4467", label:"Incident Review"},
 ];
 
 const rand = (m, M) => Math.random() * (M - m) + m;
@@ -104,9 +104,10 @@ function engine() {
 }
 
 // INIT
+let randseed = 0.35 // <<< spindata.RandSeed
 sectors.forEach(drawSector);
 rotate(); // Initial rotation
 engine(); // Start engine
 EL_spin.addEventListener("click", () => {
-    if (!angVel) angVel = rand(0.25, 0.35);
+    if (!angVel) angVel = rand(0.25, randseed); // <<< spindata.Velocity
 });
