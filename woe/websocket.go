@@ -16,12 +16,12 @@ import (
 // The server sends this to each client on a spin,
 // the spinning client sends this to the server on a spin.
 type SpinDataWS struct {
-	Type       string    `json:"type"` // "spin" | "sync"
-	SpinID     string    `json:"id"`
-	SpunString string    `json:"spun"`
-	Entries    *[]string `json:"entries"`
+	Type       string    `json:"type"`
+	SpinID     string    `json:"id,omitempty"`
+	SpunString string    `json:"spun,omitempty"`
+	Entries    *[]string `json:"entries,omitempty"`
 	Timestamp  time.Time `json:"timestamp"`
-	Velocity   float64   `json:"velocity"`
+	Velocity   float64   `json:"velocity,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -113,7 +113,9 @@ func (we *Wheel) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			if sd.Type == "spin" {
+			// Message Dispatch switch
+			switch sd.Type {
+			case "spin":
 				// New Spin!
 				// Coming from the websocket, spindata (sd) remains the same except for velocity
 				we.calcVelocity()

@@ -21,7 +21,16 @@ let entries = ["one", "two", "three", "four", "five", "six", "seven"];
 let velocity = 0.30;
 let winnerNow = null;
 
-// Form entries
+// Form entities //
+
+// Hide elements for non-GM clients
+document.addEventListener("DOMContentLoaded", () => {
+    console.log(IS_GM);
+    document.getElementById("entries-input").style.display = IS_GM ? "block" : "none";
+    // document.getElementById("start-game").style.display = IS_GM ? "block" : "none";
+});
+
+// GM Spin button
 document.querySelector("#start-game").addEventListener("click", () => {
     const entries = document.querySelector("#entries-input")
         .value.split("\n")
@@ -43,11 +52,11 @@ document.querySelector("#start-game").addEventListener("click", () => {
     });
 });
 
-// WebSocket connection (PROD)
+// WebSocket connection (PROD) //
 // const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 // const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
 
-// WebSocket connection (DEV)
+// WebSocket connection (DEV) //
 const ws = new WebSocket('ws://localhost:1234/ws');
 
 ws.onmessage = function(event) {
@@ -69,12 +78,17 @@ ws.onmessage = function(event) {
     arc = TAU / sectors.length;
     sectors.forEach(drawSector);
 
-    if (data.type === "spin") { // Spin the wheel by making velocity non-zero
-        winnerNow = data.spun; // Must be set before setting angVel
-        if (!angVel) angVel = velocity;
-        rotate();
-    } else if (data.type === "sync") { // rotate to the sector at the current index
-        rotate();
+    switch (data.type) {
+        case "spin":
+            // Fill the text area on all clients with the element list
+            document.getElementById("entries-input").value = entries.join("\n");
+            winnerNow = data.spun; // Must be set before setting angVel
+            if (!angVel) angVel = velocity;
+            rotate();
+            break;
+        case "sync":
+            rotate();
+            break;
     }
 }
 
