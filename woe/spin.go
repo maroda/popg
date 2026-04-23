@@ -127,9 +127,15 @@ func (we *Wheel) SetupMux() *mux.Router {
 	return r
 }
 
+// GameHandler is the main front page at /
+// Players will not see Game Master elements at /
+// But the Game Master can browse to /?gm=true for additional game controls
 func (we *Wheel) GameHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./woe/dev/index.html"))
-	if err := tmpl.Execute(w, map[string]string{"Token": we.Token}); err != nil {
+	isGM := r.URL.Query().Get("gm") == "true"
+	slog.Info("GM check", slog.String("gm_param", r.URL.Query().Get("gm")), slog.Bool("isGM", isGM))
+
+	if err := tmpl.Execute(w, map[string]any{"IsGM": isGM, "Token": we.Token}); err != nil {
 		slog.Error("Template execution error", slog.Any("err", err))
 		http.Error(w, "Template execution error", http.StatusInternalServerError)
 		return
