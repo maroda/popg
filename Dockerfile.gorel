@@ -1,0 +1,7 @@
+FROM alpine:latest
+LABEL app=popg
+WORKDIR /app
+COPY popg .
+COPY web .
+EXPOSE 1234
+CMD ["./popg"]

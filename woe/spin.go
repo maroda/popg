@@ -121,7 +121,8 @@ func (we *Wheel) SetupMux() *mux.Router {
 
 	// Wheel of Expertise front-end
 	// r.PathPrefix("/").Handler(http.FileServer(http.Dir("./woe/dev/")))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./woe/dev"))))
+	// r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./woe/dev"))))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web"))))
 	r.HandleFunc("/", we.GameHandler)
 
 	return r
@@ -131,7 +132,8 @@ func (we *Wheel) SetupMux() *mux.Router {
 // Players will not see Game Master elements at /
 // But the Game Master can browse to /?gm=true for additional game controls
 func (we *Wheel) GameHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./woe/dev/index.html"))
+	// tmpl := template.Must(template.ParseFiles("./woe/dev/index.html"))
+	tmpl := template.Must(template.ParseFiles("./web/index.html"))
 	isGM := r.URL.Query().Get("gm") == "true"
 	slog.Info("GM check", slog.String("gm_param", r.URL.Query().Get("gm")), slog.Bool("isGM", isGM))
 
