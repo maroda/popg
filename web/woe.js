@@ -53,11 +53,11 @@ document.querySelector("#start-game").addEventListener("click", () => {
 });
 
 // WebSocket connection (PROD) //
-// const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-// const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
+const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
 
 // WebSocket connection (DEV) //
-const ws = new WebSocket('ws://localhost:1234/ws');
+// const ws = new WebSocket('ws://localhost:1234/ws');
 
 ws.onmessage = function(event) {
     const data = JSON.parse(event.data);

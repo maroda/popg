@@ -53,7 +53,7 @@ dockers:
     dockerfile: Dockerfile.gorel
     extra_files:
       - go.mod
-      - web
+      - web/
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
@@ -70,7 +70,7 @@ dockers:
     dockerfile: Dockerfile.gorel
     extra_files:
       - go.mod
-      - web
+      - web/
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
