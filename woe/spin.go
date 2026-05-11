@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -123,7 +124,9 @@ func (we *Wheel) SetupMux() *mux.Router {
 	// r.PathPrefix("/").Handler(http.FileServer(http.Dir("./woe/dev/")))
 	// r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./woe/dev"))))
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web"))))
-	r.HandleFunc("/", we.GameHandler)
+
+	// r.HandleFunc("/", we.GameHandler)
+	r.HandleFunc("/", we.gmAuthMiddleware(we.GameHandler))
 
 	return r
 }
@@ -141,6 +144,22 @@ func (we *Wheel) GameHandler(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Template execution error", slog.Any("err", err))
 		http.Error(w, "Template execution error", http.StatusInternalServerError)
 		return
+	}
+}
+
+// gmAuthMiddleware allows for basic auth to the Game Master endpoint
+func (we *Wheel) gmAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("gm") == "true" {
+			gmPassword := os.Getenv("GM_PASSWORD")
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "gm" || pass != gmPassword {
+				w.Header().Set("WWW-Authenticate", `Basic realm="GM Access"`)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+		next(w, r)
 	}
 }
 

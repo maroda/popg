@@ -15,6 +15,12 @@ docker run -d --env-file ./.env --rm --name popg -p 1234:1234 ghcr.io/maroda/pop
 
 > Orbstack default networking makes this available at: https://popg.orb.local
 
+## Playing
+
+- Participants can browse to the main front page and view the wheel, in the example above: https://popg.orb.local
+- The Game Master sets up the server with a `GM_PASSWORD` environment variable.
+When ready to facilitate a game, the GM browses to https://popg.orb.local/?gm=true and authenticates to access game controls.
+
 ## OpenTelemetry
 Without any configuration, it will expect a local collector. If one is not running, this (harmless) error will show up in the logs. 
 ```log
