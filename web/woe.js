@@ -27,7 +27,7 @@ let winnerNow = null;
 document.addEventListener("DOMContentLoaded", () => {
     console.log(IS_GM);
     document.getElementById("entries-input").style.display = IS_GM ? "block" : "none";
-    // document.getElementById("start-game").style.display = IS_GM ? "block" : "none";
+    document.getElementById("start-game").style.display = IS_GM ? "block" : "none";
 });
 
 // GM Spin button
@@ -210,10 +210,8 @@ rotate(); // Initial rotation
 engine(); // Start engine
 EL_spin.addEventListener("click", () => {
     if (!angVel) {
-        angVel = velocity;
-        ws.send(JSON.stringify({
-            type: "spin",
-            velocity: angVel,
-        }));
+        // Only the GM can use the center spin button at #spin
+        if (!IS_GM) return;
+        ws.send(JSON.stringify({ type: "spin", velocity: velocity, }));
     }
 });

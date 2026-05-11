@@ -78,8 +78,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	port := "1234"
 	we.Server = &http.Server{
-		Addr: ":1234",
+		Addr: ":" + port,
 		Handler: otelhttp.NewHandler(we.SetupMux(), "Wheel of Expertise",
 			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return r.Method + " " + operation + " " + r.URL.Path
