@@ -172,8 +172,6 @@ func (we *Wheel) SpinHandler(w http.ResponseWriter, r *http.Request) {
 			Velocity:   we.Velocity,
 			SpunString: we.SpunString, // added for snapping to the winner
 		})
-
-		slog.Info("Broadcasting spin", slog.String("spun", we.SpunString))
 	}
 
 }

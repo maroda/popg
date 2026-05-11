@@ -121,14 +121,18 @@ func (we *Wheel) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 				we.calcVelocity()
 				sd.Velocity = we.Velocity
 
+				spun := we.Spin(1)
+
 				// Record new state to the wheel
 				we.mu.Lock()
 				we.SpinID = sd.SpinID
 				we.Entries = sd.Entries
 				we.SpinTime = sd.Timestamp
+				we.SpunString = spun
 				we.mu.Unlock()
 
 				// Init spin to clients
+				sd.SpunString = spun
 				we.Hub.Broadcast(sd)
 			}
 		}
@@ -146,7 +150,7 @@ func (we *Wheel) calcVelocity() {
 	velocity += rnd
 
 	we.mu.Lock()
-	we.Velocity += velocity
+	we.Velocity = velocity
 	we.mu.Unlock()
 }
 
