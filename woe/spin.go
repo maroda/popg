@@ -125,8 +125,8 @@ func (we *Wheel) SetupMux() *mux.Router {
 	// r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./woe/dev"))))
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web"))))
 
-	// r.HandleFunc("/", we.GameHandler)
-	r.HandleFunc("/", we.gmAuthMiddleware(we.GameHandler))
+	r.HandleFunc("/", we.GameHandler)
+	// r.HandleFunc("/", we.gmAuthMiddleware(we.GameHandler))
 
 	return r
 }
@@ -137,7 +137,8 @@ func (we *Wheel) SetupMux() *mux.Router {
 func (we *Wheel) GameHandler(w http.ResponseWriter, r *http.Request) {
 	// tmpl := template.Must(template.ParseFiles("./woe/dev/index.html"))
 	tmpl := template.Must(template.ParseFiles("./web/index.html"))
-	isGM := r.URL.Query().Get("gm") == "true"
+	// isGM := r.URL.Query().Get("gm") == "true"
+	isGM := r.URL.Query().Get("gm") == os.Getenv("GM_PASSWORD")
 	slog.Info("GM check", slog.String("gm_param", r.URL.Query().Get("gm")), slog.Bool("isGM", isGM))
 
 	if err := tmpl.Execute(w, map[string]any{"IsGM": isGM, "Token": we.Token}); err != nil {
