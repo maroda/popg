@@ -83,7 +83,7 @@ ws.onmessage = function(event) {
             // Fill the text area on all clients with the element list
             document.getElementById("entries-input").value = entries.join("\n");
             winnerNow = data.spun; // Must be set before setting angVel
-            if (!angVel) angVel = velocity;
+            angVel = velocity;
             rotate();
             break;
         case "sync":

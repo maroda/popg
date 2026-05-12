@@ -224,6 +224,7 @@ func (we *Wheel) processPayload(w http.ResponseWriter, r *http.Request) {
 	we.SpinID = payload.ID
 	we.Entries = &entries
 	we.SpinTime = time.Now().UTC()
+	we.SpunString = we.Spin(1)
 	we.mu.Unlock()
 }
 
