@@ -63,7 +63,7 @@ ws.onmessage = function(event) {
     const data = JSON.parse(event.data);
     console.log('Received data: ', JSON.stringify(data));
 
-    if (!data.entries.length || data.entries.length === 0) return;
+    if (!data.entries || !data.entries.length) return;
 
     const timestamp = data.timestamp;
     const spinID = data.id;
@@ -87,6 +87,7 @@ ws.onmessage = function(event) {
             rotate();
             break;
         case "sync":
+            winnerNow = data.spun;
             rotate();
             break;
     }
